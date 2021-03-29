@@ -25,59 +25,34 @@ class LinearClassifier(object):
     A list containing the value of the loss function at each training iteration.
     """
     num_train_features, num_train_samples = X_train.shape
-    num_train_labels = np.max(y_train) + 1 
+    num_train_labels = np.max(y_train) + 1 # Assuming that the labels are like 0, 1, 2, etc. 
     if self.W is None:
-      # Randomly initialize W
-      self.W = 0.01 * np.random.randn(num_train_labels, num_train_features)
+      self.W = np.zeros((num_train_labels, num_train_features)) # bias column initialized to zeros        
+      # Randomly initialize weights part of the W matrix
+      (self.W)[:, :-1] = 0.01 * np.random.randn(num_train_labels, num_train_features-1)
       
     # Run batch /stochastic gradient descent to optimize W
-    loss_history = []
+    loss_history = [] # initialize empty list for storing loss history over iterations
     for it in range(num_iters):
-      X_train_batch = None
-      y_train_batch = None
-
-      #########################################################################
-      # TODO:                                                                 #
-      # Sample batch_size elements from the training data and their           #
-      # corresponding labels to use in this round of gradient descent.        #
-      # Store the data in X_batch and their corresponding labels in           #
-      # y_batch; after sampling X_batch should have shape (dim, batch_size)   #
-      # and y_batch should have shape (batch_size,)                           #
-      #                                                                       #
-      # Hint: Use np.random.choice to generate indices. Sampling with         #
-      # replacement is faster than sampling without replacement.              #
-      #########################################################################
-      batch_indices = np.random.choice(num_train_samples, batch_size, replace = True)
-      X_train_batch = X_train[:, batch_indices]
-      y_train_batch = y_train[batch_indices]
-      #########################################################################
-      #                       END OF YOUR CODE                                #
-      #########################################################################
-
-      # evaluate loss and gradient
-      loss, grad = self.lossgradient(X_train_batch, y_train_batch, reg)
+      # Get random sample indices for batch processing
+      batch_indices = np.random.choice(num_train_samples, batch_size, replace = False)
+      
+      # Evaluate loss and gradient on batch samples
+      loss, dW = self.loss_gradient(X_train[:, batch_indices], y_train[batch_indices], reg)
       loss_history.append(loss)
 
-      # perform parameter update
-      #########################################################################
-      # TODO:                                                                 #
-      # Update the weights using the gradient and the learning rate.          #
-      #########################################################################
-      self.W = self.W - learning_rate * grad
-      #########################################################################
-      #                       END OF YOUR CODE                                #
-      #########################################################################
-      
-      # Print loss history once every 100 iterations
-      if verbose and (it % 100 == 0):
+      # Update weights matrix
+      self.W = self.W - learning_rate * dW
+   
+      # Print loss history once every 10 iterations
+      if verbose and (it % 10 == 0):
         print('Iteration: %d / %d, Loss: %f' % (it, num_iters, loss))
 
     return loss_history
 
   def predict(self, X):
     """
-    Use the trained weights of this linear classifier to predict labels for
-    data points.
+    Use the trained weights of this linear classifier to predict labels for samples
 
     Inputs:
     - X: A numpy array of shape (num_features, num_samples) containing data.
@@ -87,21 +62,20 @@ class LinearClassifier(object):
       array of length num_samples, and each element is an integer giving the predicted
       class.
     """
-    y_pred = np.zeros(X.shape[0])
-    ###########################################################################
-    # TODO:                                                                   #
-    # Implement this method. Store the predicted labels in y_pred.            #
-    ###########################################################################
+    # Predicted labels
+    y_pred = np.zeros(X.shape[1])
+   
+    # Calculate scores matrix
     S = np.dot(self.W, X)
+    
+    # Set predicted label for each sample (that is column) as equal to maximum score index value 
     y_pred = S.argmax(axis = 0)
-    ###########################################################################
-    #                           END OF YOUR CODE                              #
-    ###########################################################################
+    
     return y_pred
   
-  def lossgradient(self, X_train_batch, y_train_batch, reg):
+  def loss_gradient(self, X_train_batch, y_train_batch, reg):
     """
-    Compute the loss function and its derivative. 
+    Compute the loss function and its gradient. 
     Subclasses (for SVM and Softmax) will override this.
 
     Inputs:
@@ -118,13 +92,13 @@ class LinearClassifier(object):
 class LinearSVM(LinearClassifier):
   """ A subclass that uses the Multiclass SVM loss function """
 
-  def loss(self, X_train_batch, y_train_batch, reg):
+  def loss_gradient(self, X_train_batch, y_train_batch, reg):
     return svm_loss_gradient(self.W, X_train_batch, y_train_batch, reg)
 
 
 class Softmax(LinearClassifier):
   """ A subclass that uses the Softmax + Cross-entropy loss function """
 
-  def lossgradient(self, X_train_batch, y_train_batch, reg):
+  def loss_gradient(self, X_train_batch, y_train_batch, reg):
     return softmax_loss_gradient(self.W, X_train_batch, y_train_batch, reg)
 
